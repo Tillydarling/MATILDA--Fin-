@@ -20,8 +20,10 @@ import {
   Scale,
   RotateCcw,
   BarChart3,
-  Search
+  Search,
+  FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Transaction, FinancialStatements, AccountCategory, TransactionType } from './types';
 import { calculateStatements, sampleTransactions, formatCurrency, performBankReconciliation, sampleBankStatement, getTrendData } from './utils/finance';
 import { getFinancialAnalysis } from './services/geminiService';
@@ -70,6 +72,100 @@ const App: React.FC = () => {
     const analysis = await getFinancialAnalysis(statements);
     setAiAnalysis(analysis || "No analysis generated.");
     setIsAnalyzing(false);
+  };
+
+  const handleExportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    let ws;
+    let fileName = `FinReport_${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    switch (activeTab) {
+      case 'transactions':
+        ws = XLSX.utils.json_to_sheet(transactions);
+        XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+        break;
+      case 'trial-balance':
+        ws = XLSX.utils.json_to_sheet(statements.trialBalance);
+        XLSX.utils.book_append_sheet(wb, ws, "Trial Balance");
+        break;
+      case 'income':
+        const isData = [
+          ["Income Statement"],
+          ["Revenue"],
+          ...statements.incomeStatement.revenue.map(i => [i.label, i.amount]),
+          ["Total Revenue", statements.incomeStatement.totalRevenue],
+          [""],
+          ["Expenses"],
+          ...statements.incomeStatement.expenses.map(i => [i.label, i.amount]),
+          ["Total Expenses", statements.incomeStatement.totalExpenses],
+          [""],
+          ["Net Income", statements.incomeStatement.netIncome]
+        ];
+        ws = XLSX.utils.aoa_to_sheet(isData);
+        XLSX.utils.book_append_sheet(wb, ws, "Income Statement");
+        break;
+      case 'balance-sheet':
+        const bsData = [
+          ["Balance Sheet"],
+          ["Assets"],
+          ...statements.balanceSheet.assets.map(i => [i.label, i.amount]),
+          ["Total Assets", statements.balanceSheet.totalAssets],
+          [""],
+          ["Liabilities"],
+          ...statements.balanceSheet.liabilities.map(i => [i.label, i.amount]),
+          ["Total Liabilities", statements.balanceSheet.totalLiabilities],
+          [""],
+          ["Equity"],
+          ...statements.balanceSheet.equity.map(i => [i.label, i.amount]),
+          ["Total Equity", statements.balanceSheet.totalEquity],
+          [""],
+          ["Total L&E", statements.balanceSheet.totalLiabilities + statements.balanceSheet.totalEquity]
+        ];
+        ws = XLSX.utils.aoa_to_sheet(bsData);
+        XLSX.utils.book_append_sheet(wb, ws, "Balance Sheet");
+        break;
+      case 'cashflow':
+        const cfData = [
+          ["Cash Flow Statement"],
+          ["Operating Activities"],
+          ...statements.cashFlow.operating.map(i => [i.label, i.amount]),
+          [""],
+          ["Investing Activities"],
+          ...statements.cashFlow.investing.map(i => [i.label, i.amount]),
+          [""],
+          ["Financing Activities"],
+          ...statements.cashFlow.financing.map(i => [i.label, i.amount]),
+          [""],
+          ["Net Cash Flow", statements.cashFlow.netCashFlow]
+        ];
+        ws = XLSX.utils.aoa_to_sheet(cfData);
+        XLSX.utils.book_append_sheet(wb, ws, "Cash Flow");
+        break;
+      case 'reconciliation':
+        const reconData = reconMatches.map(m => ({
+          Book_Description: m.bookEntry?.description || '',
+          Book_Date: m.bookEntry?.date || '',
+          Book_Amount: m.bookEntry?.amount || '',
+          Bank_Description: m.statementEntry?.description || '',
+          Bank_Date: m.statementEntry?.date || '',
+          Bank_Amount: m.statementEntry?.amount || '',
+          Status: m.status
+        }));
+        ws = XLSX.utils.json_to_sheet(reconData);
+        XLSX.utils.book_append_sheet(wb, ws, "Reconciliation");
+        break;
+      case 'trend':
+        ws = XLSX.utils.json_to_sheet(trendData);
+        XLSX.utils.book_append_sheet(wb, ws, "Trends");
+        break;
+      default:
+        // Default to exporting all transactions if on dashboard or AI
+        ws = XLSX.utils.json_to_sheet(transactions);
+        XLSX.utils.book_append_sheet(wb, ws, "Full Ledger");
+        fileName = `FinReport_FullLedger_${new Date().toISOString().split('T')[0]}.xlsx`;
+    }
+
+    XLSX.writeFile(wb, fileName);
   };
 
   const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6'];
@@ -137,6 +233,9 @@ const App: React.FC = () => {
             <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all text-sm font-medium border">
               <Upload size={16} /> Import
             </button>
+            <button onClick={handleExportExcel} className="flex items-center gap-2 px-3 py-1.5 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium border shadow-sm">
+              <FileSpreadsheet size={16} className="text-emerald-600" /> Export Excel
+            </button>
             <button className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium shadow-sm">
               <Download size={16} /> Export PDF
             </button>
@@ -199,12 +298,24 @@ const App: React.FC = () => {
                    <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={statements.balanceSheet.assets} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="amount" nameKey="label">
+                        <Pie 
+                          data={statements.balanceSheet.assets} 
+                          cx="50%" 
+                          cy="50%" 
+                          innerRadius={50} 
+                          outerRadius={70} 
+                          paddingAngle={5} 
+                          dataKey="amount" 
+                          nameKey="label"
+                          labelLine={true}
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                        >
                           {statements.balanceSheet.assets.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip />
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Legend verticalAlign="bottom" height={36}/>
                       </PieChart>
                     </ResponsiveContainer>
                    </div>
@@ -510,7 +621,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* AI Insights (Already implemented, can stay as is) */}
+          {/* AI Insights */}
           {activeTab === 'ai' && (
              <div className="max-w-4xl mx-auto space-y-6">
              <div className="bg-gradient-to-br from-slate-900 to-indigo-900 p-10 rounded-3xl text-white shadow-2xl relative overflow-hidden">
