@@ -1,0 +1,5 @@
+{
+  "name": "FinReport AI - Professional Financial Reporting System",
+  "description": "A comprehensive financial reporting suite that generates Trial Balances, Income Statements, and Cash Flow reports from raw ledger data, featuring AI-powered CFO insights using Gemini.",
+  "requestFramePermissions": []
+}
