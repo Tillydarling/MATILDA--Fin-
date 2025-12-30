@@ -6,24 +6,36 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 
 export const getFinancialAnalysis = async (statements: FinancialStatements) => {
   const prompt = `
-    As a world-class CFO, analyze the following financial statements and provide a concise professional report.
-    Highlight key performance indicators, cash flow health, and specific areas for improvement.
+    As a world-class CFO, analyze the following financial statements and provide a high-level strategic report.
+    Highlight key performance indicators, cash flow health, equity movements, and critical risks.
     
-    Data:
-    Income Statement: Net Income: ${statements.incomeStatement.netIncome}
-    Total Revenue: ${statements.incomeStatement.revenue.reduce((s, i) => s + i.amount, 0)}
-    Total Expenses: ${statements.incomeStatement.expenses.reduce((s, i) => s + i.amount, 0)}
+    Data Summary:
+    Income Statement: 
+    - Net Income: ${statements.incomeStatement.netIncome}
+    - Revenue: ${statements.incomeStatement.totalRevenue}
+    - Expenses: ${statements.incomeStatement.totalExpenses}
     
-    Cash Flow: Net Cash Flow: ${statements.cashFlow.netCashFlow}
-    Operating: ${statements.cashFlow.operating.reduce((s, i) => s + i.amount, 0)}
-    Investing: ${statements.cashFlow.investing.reduce((s, i) => s + i.amount, 0)}
-    Financing: ${statements.cashFlow.financing.reduce((s, i) => s + i.amount, 0)}
+    Balance Sheet & Equity:
+    - Total Assets: ${statements.balanceSheet.totalAssets}
+    - Total Equity: ${statements.balanceSheet.totalEquity}
+    - Equity Components: ${JSON.stringify(statements.equityChanges)}
+    
+    Cash Flow: 
+    - Operating Activities: ${statements.cashFlow.operating.reduce((s, i) => s + i.amount, 0)}
+    - Net Change in Cash: ${statements.cashFlow.netCashFlow}
+    
+    Budget Variance:
+    - Revenue Variance: ${statements.variance.revenueActual - statements.variance.revenueBudget}
+    - Expense Variance: ${statements.variance.expenseBudget - statements.variance.expenseActual}
     
     Please structure your response with:
-    1. Executive Summary
-    2. Profitability Analysis
-    3. Liquidity & Cash Position
-    4. Strategic Recommendations
+    1. Executive Summary (Strategic Outlook)
+    2. Profitability & Growth Analysis
+    3. Equity & Financial Position (Comment on capital adequacy based on Changes in Equity)
+    4. Liquidity & Cash Sustainability
+    5. Strategic Recommendations & Risk Mitigation
+    
+    Tone: Professional, authoritative, and forward-looking.
   `;
 
   try {
@@ -34,6 +46,6 @@ export const getFinancialAnalysis = async (statements: FinancialStatements) => {
     return response.text;
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
-    return "Failed to generate AI analysis. Please check your network or API configuration.";
+    return "Failed to generate AI analysis. Please verify your data and try again.";
   }
 };

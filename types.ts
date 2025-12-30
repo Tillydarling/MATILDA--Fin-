@@ -35,6 +35,22 @@ export interface StatementItem {
   isTotal?: boolean;
 }
 
+export interface EquityChangeItem {
+  accountName: string;
+  openingBalance: number;
+  additions: number;
+  netIncome: number;
+  withdrawals: number;
+  closingBalance: number;
+}
+
+export interface FinancialNote {
+  noteNumber: number;
+  title: string;
+  content: string;
+  data?: StatementItem[];
+}
+
 export interface BankStatementItem {
   id: string;
   date: string;
@@ -71,6 +87,8 @@ export interface FinancialStatements {
     financing: StatementItem[];
     netCashFlow: number;
   };
+  equityChanges: EquityChangeItem[];
+  notes: FinancialNote[];
   variance: {
     revenueActual: number;
     revenueBudget: number;
